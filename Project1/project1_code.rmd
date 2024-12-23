@@ -1,0 +1,550 @@
+---
+title: "SDM_Project_1_Code"
+output:
+  pdf_document:
+    keep_tex: true
+always_allow_html: true
+---
+
+# Load Required Libraries
+```{R}
+library(ggplot2)  
+library(dplyr)
+library(cluster)
+# install.packages("factoextra")
+library(factoextra)
+library(corrplot)
+# install.packages("caret") 
+library(caret) 
+library(rpart)
+library(gridExtra)
+# install.packages("plotly")
+library(plotly)
+```
+
+# Load Data and Preprocess
+```{R}
+mine_data = read.csv("Mine Dataset/Mine_Dataset_1.csv")
+head(mine_data)
+```
+
+## Check for Data Types, Missing Values and Duplicates
+```{R}
+summary(mine_data)
+str(mine_data)
+```
+
+Checking for Missing values 
+```{R}
+any_missing = any(is.na(mine_data))
+print(paste("Are there any missing values?", any_missing))
+```
+
+Checking for duplicate rows
+```{R}
+duplicate_rows = duplicated(mine_data)
+print(paste("Number of duplicate rows:", sum(duplicate_rows)))
+```
+
+```{R}
+mean_value = sd(mine_data$V)
+print(mean_value)
+```
+Performed Scaling after EDA
+
+Notes :
+
+0.0: 'Dry+sandy',
+0.2: 'Dry+humus',
+0.4: 'Dry+limey',
+0.6: 'Humid+sandy',
+0.8: 'Humid+humus',
+1.0: 'Humid+limey
+
+# Exploratory Data Analysis
+
+## Distrubution plots
+```{R}
+ggplot(mine_data, aes(x = V)) + geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) + ggtitle("Distribution of V")
+ggplot(mine_data, aes(x = H)) + geom_histogram(bins = 30, fill = "#8d67aa", alpha = 0.7) + ggtitle("Distribution of H")
+```
+
+## Correlation Plots
+```{R}
+correlation_matrix = cor(mine_data[, c("V", "H", "S")])
+corrplot(correlation_matrix, method = "pie")
+```
+
+Correlation matrix including Voltage (V) and Height (H)
+```{R}
+correlation_matrix = cor(mine_data[, sapply(mine_data, is.numeric)])
+corrplot(correlation_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+```
+
+## Box plot of Voltage by Soil Type
+```{R}
+ggplot(mine_data, aes(x = factor(S), y = V)) +
+  geom_boxplot(fill = "lightblue") +
+  theme_minimal() +
+  labs(title = "Boxplot of Voltage (V) by Soil Type", x = "Soil Type", y = "Voltage (V)")
+```
+
+## Scatter plot of Voltage vs Height, colored by Mine Type
+```{R}
+ggplot(mine_data, aes(x = `H`, y = `V`, color = factor(M))) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Voltage vs Height by Mine Type")
+```
+
+## Bar Plot for Categorical Variable Distribution
+```{R}
+# Bar plot for Soil Type distribution
+ggplot(mine_data, aes(x = factor(S))) +
+  geom_bar(fill = "#713c8a", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of Soil Types", x = "Soil Type", y = "Count")
+```
+
+```{R}
+# Bar plot for Mine Type distribution
+ggplot(mine_data, aes(x = factor(M))) +
+  geom_bar(fill = "steelblue", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of Mine Types", x = "Mine Type", y = "Count")
+```
+
+## Scaling the data
+```{R}
+mine_data_cleaned = mine_data[, c("V", "H", "S")]
+mine_data_scaled = scale(mine_data_cleaned)
+```
+
+## Perform PCA
+```{R}
+pca_result = prcomp(mine_data_scaled, center = TRUE, scale. = TRUE)
+summary(pca_result)
+```
+
+```{R}
+pca_data <- pca_result$x[, 1:2]
+ggplot(as.data.frame(pca_data), aes(x = PC1, y = PC2)) +
+  geom_point() +
+  labs(title = "PCA of Scaled Data")
+```
+
+```{R}
+pca_data_3D <- pca_result$x[, 1:3]
+plot_ly(x = pca_data_3D[,1], y = pca_data_3D[,2], z = pca_data_3D[,3], 
+        type = 'scatter3d', mode = 'markers') %>%
+  layout(title = "3D PCA of the Data",
+         scene = list(
+           xaxis = list(title = 'PC1'),
+           yaxis = list(title = 'PC2'),
+           zaxis = list(title = 'PC3')
+         ))
+```
+
+
+## Proportion Variance Explained
+```{R}
+pr.out = pca_result
+pr.var <- pr.out$sdev^2
+PVE <- pr.var/sum(pr.var)
+PVE
+```
+```{R}
+par ( mfrow = c (1 , 2) )
+plot ( PVE , xlab = "Principal Component" ,
+ ylab = "Proportion of Variance Explained" , ylim = c (0 , 1) ,
+ type = "b" )
+ 3
+plot ( cumsum ( PVE ) , xlab = "Principal Component" ,
+ ylab = "Cumulative Proportion of Variance Explained" ,
+ ylim = c (0 , 1) , type = "b" )
+```
+
+
+# Clustering
+
+## 1.  K-means clustering
+
+### Intro:
+Kmeans algorithm (also referred as Lloyd’s algorithm) is the most commonly used unsupervised machine learning algorithm used to partition the data into a set of k groups or clusters.
+
+How Kmeans works?
+1. Define the number of clusters (k)
+2. Initialize k centroids by randomly.
+3. Assignment Step: Assign each observation to the closest centroid (center-point) by calculting least squared euclidean distance between centroids and observations. (i.e. least squared euclidean distance between assigned center and observation should be minimum than other centers).
+4. Update Step: Calculate the new means as centroids for new clusters.
+5. Repeat both assignment and update step (i.e. steps 3 & 4) until convergence (minimum total sum of square) or maximum iteration is reached.
+   
+### Determining optimal number of clusters (k)
+Before we do the actual clustering, we need to identity the Optimal number of clusters (k) for this data set of wholesale customers. The popular way of determining number of clusters are
+
+1. Elbow Method
+2. Gap Statistics Method
+3. Silhouette Method
+
+Elbow and Silhouette methods are direct methods and gap statistic method is the statistics method.
+
+
+Notes : K-means clustering aims to minimize the Within-Cluster Sum of Squares (WCSS), which measures how tightly the data points are grouped in each cluster. It is also known as the inertia.
+
+As the number of clusters (k) increases, the WCSS generally decreases because more clusters mean that each cluster will have fewer points, resulting in a better fit. However, adding too many clusters can lead to overfitting and make the clustering meaningless.
+
+
+How to choose optimal number of clusters 
+### 1. Elbow Method
+```{R}
+#Elbow Method for finding the optimal number of clusters
+wssplot <- function(data, nc=15, seed=1234){
+  wss = (nrow(data)-1)*sum(apply(data,2,var)) # calculating variance as the data set and storing the value as (variance of the cluster when k = 1)
+#   print(wss)
+  for (i in 2:nc)
+  {
+    set.seed(seed)
+    wss[i] = sum(kmeans(data, centers=i)$withinss)
+  }
+#   print(wss)
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")
+}
+```
+
+```{R}
+wssplot(mine_data_scaled)
+```
+
+The best value to choose as the optimal number of clusters would likely be 5 based on the point where the WSS starts flattening. However, it is always good to visually inspect the plot to confirm this behavior.
+
+
+
+### Applying Gap Statistics
+
+```{R}
+set.seed(1234)  # Set a seed for reproducibility
+gap_stat = clusGap(mine_data_scaled, 
+                    FUN = function(x, k) kmeans(x, centers = k, nstart = 25), 
+                    K.max = 15, 
+                    B = 50)
+```
+
+
+```{R}
+gap_stat
+```
+
+```{R}
+plot(gap_stat, main = "clusGap(., FUN = kmeans, n.start=20, B= 60)")
+```
+
+
+```{R}
+k_values <- 1:15
+observed_logW <- gap_stat$Tab[, "logW"]
+expected_logW <- gap_stat$Tab[, "E.logW"]
+
+plot(k_values, observed_logW, type = "b", col = "blue", pch = 19, 
+     xlab = "Number of Clusters (k)", ylab = "obs and exp log(Wk)", 
+     main = "Observed vs Expected logW (Gap Statistic)", 
+     ylim = range(c(observed_logW, expected_logW)))
+
+lines(k_values, expected_logW, type = "b", col = "red", pch = 17, lty = 2)
+
+legend("topright", legend = c("Observed logW", "Expected logW"), 
+       col = c("blue", "red"), pch = c(19, 17), lty = c(1, 2))
+
+```
+
+The Gap Statistic plot identifies the optimal number of clusters by comparing the logarithm of within-cluster dispersion with its expected value under a null reference distribution. A prominent peak at k=5 indicates this as a potential optimal cluster count, with increasing error bars (standard deviation) for higher 
+reflecting greater uncertainty in clustering outcomes.
+
+
+### Silhouette Method
+
+```{R}
+silhouette_score <- function(k){
+  km <- kmeans(mine_data_scaled, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, dist(mine_data_scaled))
+  mean(ss[, 3])
+}
+k <- 3:15
+avg_sil <- sapply(k, silhouette_score)
+plot(k, type='b', avg_sil, xlab='Number of clusters', ylab='Average Silhouette Scores', frame=FALSE)
+```
+
+Plotting bar chart for silhouette scores
+```{R}
+k_values <- c(3, 4, 5, 6)
+silhouette_scores <- list()
+
+for (k in k_values) {
+  kmeans_result = kmeans(mine_data_scaled, centers = k, nstart = 25)
+  sil = silhouette(kmeans_result$cluster, dist(mine_data_scaled))
+  silhouette_scores[[as.character(k)]] = mean(sil[, 3])  # Store average silhouette width
+}
+
+barplot(unlist(silhouette_scores), names.arg = k_values,
+        xlab = "Number of Clusters", ylab = "Average Silhouette Width",
+        main = "Silhouette Method for Optimal k",
+        col = "lightblue", horiz = TRUE, xlim = c(0, 1))
+
+```
+
+From Class Notes : Choose k with larger width and no negative items (are they outliers?)
+k with larger width is 5
+
+The silhouette analysis evaluates cluster separation for k ranging from 3 to 15, with the highest score (~0.055) at 
+k=5, indicating the optimal cluster count. The scores decline sharply after k=5 and stabilize at lower values, reflecting weak overall clustering structure. The code performs k-means clustering, computes silhouette widths, and plots average scores, suggesting k=5 as the best balance of separation and simplicity.
+
+Hence choosing K = 5 as the optimal number of clusters from above three methods
+
+### Applying K-Means clustering for PCA Data
+```{R}
+pca_result <- prcomp(mine_data_scaled, center = TRUE, scale. = TRUE)
+
+pca_data_2PC <- data.frame(pca_result$x[, 1:2])  # Using PC1 and PC2
+pca_data_3PC <- data.frame(pca_result$x[, 1:3])  # Using PC1, PC2, and PC3
+
+set.seed(1234)
+km_2PC <- kmeans(pca_data_2PC, centers = 5, nstart = 25)  # Apply K-means to 2 PCs
+pca_data_2PC$Cluster <- as.factor(km_2PC$cluster)
+
+set.seed(1234)
+km_3PC <- kmeans(pca_data_3PC, centers = 5, nstart = 25)  # Apply K-means to 3 PCs
+pca_data_3PC$Cluster <- as.factor(km_3PC$cluster)
+```
+
+Visualization for 2 PCs
+```{R}
+ggplot(pca_data_2PC, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(size = 3) +
+  labs(title = "Clustering using PC1 and PC2", x = "PC1", y = "PC2") +
+  theme_minimal() +
+  scale_color_manual(values = c("red", "blue", "green", "purple", "yellow"))
+```
+
+The code performs K-means clustering on PCA-transformed data, using 5 clusters and the first two principal components. The data preparation involves scaling the original data and applying PCA, followed by K-means clustering with 5 centers and 25 random starts. The visualization using ggplot2 shows clear cluster separation in the PC1 vs PC2 space, with each cluster represented by a different color (red, blue, green, purple, and yellow).
+
+Visualization for 3 PCs
+```{R}
+library(plotly)
+plot_ly(x = pca_data_3PC$PC1, y = pca_data_3PC$PC2, z = pca_data_3PC$PC3,
+        color = pca_data_3PC$Cluster, colors = c("red", "blue", "green", "purple", "yellow"),
+        type = 'scatter3d', mode = 'markers') %>%
+  layout(title = "3D Clustering using PC1, PC2, and PC3",
+         scene = list(xaxis = list(title = 'PC1'),
+                      yaxis = list(title = 'PC2'),
+                      zaxis = list(title = 'PC3')))
+```
+
+
+This enhanced version adds black diamond markers to show the cluster centroids, making it easier to visualize the center of each cluster in the 3D space. The interactive plotly visualization allows you to rotate, zoom, and hover over points for more detailed information.
+
+
+# Hierarchical Clustering
+
+```{R}
+mine_data_scaled_HC = mine_data_scaled
+head(mine_data_scaled_HC)
+mine_data_scaled_HC <- as.data.frame(mine_data_scaled_HC)
+```
+
+```{R, fig.width = 10, fig.height = 14, echo = FALSE}
+dist_matrix <- dist(mine_data_scaled_HC, method = "euclidean")  # Euclidean distance
+hc_complete <- hclust(dist_matrix, method = "complete")  # Complete linkage
+
+plot(hc_complete, main = "Dendrogram of Hierarchical Clustering", xlab = "", sub = "", cex = 0.9)
+
+mine_data_scaled_HC$Cluster <- cutree(hc_complete, k = 5)
+
+```
+
+The dendrogram visualization reveals the hierarchical relationships between clusters, where the height of each branch represents the distance (dissimilarity) between merged clusters. The complete linkage method used here considers the maximum distance between points in different clusters when merging them.
+
+
+```{R, fig.width = 10, fig.height = 10, echo = FALSE}
+plot(mine_data_scaled_HC$V, mine_data_scaled_HC$H, 
+     col = mine_data_scaled_HC$Cluster, 
+     pch = 19, xlab = "Voltage (V)", ylab = "Height (H)",
+     main = "Hierarchical Clustering Results", cex = 1.5)
+
+legend("topright", legend = unique(mine_data_scaled_HC$Cluster), 
+       col = 1:length(unique(mine_data_scaled_HC$Cluster)), pch = 19)
+```
+
+The plot visualizes five clusters (black, red, green, blue, cyan) on a Voltage (x-axis) vs. Height (y-axis) coordinate system, with points forming horizontal bands across height levels. Voltage ranges from -1 to 3, and Height ranges from -1.5 to 1.5, with a legend indicating clusters. The plot highlights how hierarchical clustering grouped data based on Voltage and Height.
+
+
+### Experimenting for all methods
+
+```{R, fig.width = 10, fig.height = 14, echo = FALSE}
+library(stats)
+
+perform_hierarchical_clustering <- function(data, num_clusters = 5) {
+    data <- as.data.frame(data)
+    distance_matrix <- dist(data)
+    methods <- c("complete", "average", "single", "centroid")
+    par(mfrow = c(2, 2), mar = c(5, 5, 4, 1))
+    for (method in methods) {
+        hc <- hclust(distance_matrix, method = method)
+        plot(hc, main = paste("Dendrogram -", method), xlab = "", ylab = "")
+        data$Cluster <- cutree(hc, k = num_clusters)
+        plot(data$V, data$H, col = data$Cluster,
+            pch = 19, xlab = "Voltage (V)", ylab = "Height (H)",
+            main = paste("Cluster Graph -", method), cex = 1.5)
+        legend("topright", legend = paste("Cluster", 1:num_clusters),
+            col = 1:num_clusters, pch = 19)
+    }
+    par(mfrow = c(1, 1))
+}
+
+perform_hierarchical_clustering(mine_data_scaled, num_clusters = 5)
+
+```
+
+The code performs hierarchical clustering on mine_data_scaled using four linkage methods: complete, average, single, and centroid. For each method, it generates a dendrogram to visualize hierarchical cluster formation and a corresponding scatter plot to display clustering results in the voltage-height space. The clustering results are shown in distinct colors for each of the 5 clusters, with legends identifying the cluster groups.
+
+# Kernal PCA
+```{R}
+# install.packages("kernlab")
+library(kernlab)
+```
+
+```{R}
+data_kpca <- mine_data_scaled_HC
+kernel_pca <- kpca(~ V + H + S, data = data_kpca, kernel = "rbfdot", kpar = list(sigma = 0.1))
+summary(kernel_pca)
+```
+
+```{R}
+eigenvalues <- kernel_pca@eig
+eigenvectors <- pcv(kernel_pca)
+head(eigenvalues)
+```
+
+```{R}
+transformed_data <- as.data.frame(predict(kernel_pca, data_kpca))
+plot(transformed_data$V1, transformed_data$V2, 
+     xlab = "PC1", ylab = "PC2", 
+     main = "Kernel PCA Results", 
+     col = "blue", pch = 19)
+```
+
+The code applies Kernel PCA on mine_data_scaled_HC using an RBF kernel to extract nonlinear patterns. It computes eigenvalues and eigenvectors, then transforms the data into the kernel PCA space. Finally, it visualizes the first two principal components (PC1 vs. PC2) to reveal clusters or trends.
+
+
+
+### Test Train Split
+
+```{R}
+set.seed(1234)
+sample_index = sample(1:nrow(mine_data), size = 0.8 * nrow(mine_data))
+
+train_data = mine_data[sample_index, ]
+test_data = mine_data[-sample_index, ]
+
+x_train = train_data[, c("V", "H", "S")]
+y_train = train_data$M
+x_test = test_data[, c("V", "H", "S")]
+y_test = test_data$M
+```
+
+### Scaling the data
+
+```{R}
+x_train_scaled = scale(x_train)
+x_test_scaled = scale(x_test)
+head(x_train_scaled)
+head(x_test_scaled)
+```
+
+# Applying K-means Clustering
+
+```{R}
+classes = 5
+kmeans_model <- kmeans(x_train_scaled, centers = classes, nstart = 25)
+```
+
+```{R}
+train_clusters <- kmeans_model$cluster
+train_confusion_matrix <- table(train_clusters, y_train)
+
+train_confusion_matrix
+```
+
+
+```{R}
+map_clusters_to_labels <- function(cluster, y_train, clusters) {
+  majority_label <- names(sort(table(y_train[clusters == cluster]), decreasing = TRUE))[1]
+  return(majority_label)
+}
+
+cluster_to_label_map <- sapply(1:classes, function(cluster) {
+  map_clusters_to_labels(cluster, y_train, train_clusters)
+})
+
+predicted_labels_train <- sapply(train_clusters, function(cluster) {
+  cluster_to_label_map[cluster]
+})
+
+train_accuracy <- sum(predicted_labels_train == y_train) / length(y_train)
+
+print(paste("Train Accuracy:", round(train_accuracy, 4)))
+```
+
+
+```{R}
+distances <- as.matrix(dist(rbind(kmeans_model$centers, x_test_scaled)))
+distances <- distances[1:classes, -(1:classes)]
+
+# Assign each test sample to the closest centroid
+test_clusters <- apply(distances, 2, which.min)
+
+# Map test clusters to actual class labels (using the same mapping from train)
+predicted_labels_test <- sapply(test_clusters, function(cluster) {
+  cluster_to_label_map[cluster]
+})
+
+# Calculate test accuracy
+test_accuracy <- sum(predicted_labels_test == y_test) / length(y_test)
+print(paste("Test Accuracy:", round(test_accuracy, 4)))
+```
+
+
+The K-Means clustering model achieved an **accuracy of just 26%**, which is quite low for a classification task. Therefore, exploring other models such as Logistic Regression, Random Forest, or XGBoost could potentially yield better results and improve predictive performance.
+
+
+# Random Forest
+
+```{R}
+library(randomForest)
+train_data$M <- as.factor(train_data$M)
+test_data$M <- as.factor(test_data$M)
+model_rf <- randomForest(M ~ V + H + S, data = train_data, ntree = 100)
+print(model_rf)
+predictions_rf <- predict(model_rf, test_data)
+conf_rf = confusionMatrix(predictions_rf, as.factor(test_data$M))
+print(conf_rf)
+```
+
+The Random Forest model achieved an overall **accuracy of 45.59%**, with a Kappa score of 0.3233, indicating moderate agreement. Class 2 has the highest sensitivity (90.91%) and balanced accuracy (92.82%), while Class 5 shows the weakest performance (12.5% sensitivity, 48.56% balanced accuracy). The confusion matrix reveals misclassifications, especially in Classes 3, 4, and 5, suggesting room for improvement in handling imbalanced or overlapping data.
+
+# SVM
+
+```{R}
+library(e1071)
+
+y_train <- factor(y_train, levels = levels(as.factor(test_data$M)))
+svm_model <- svm(y_train ~ ., data = cbind(x_train_scaled, y_train), type = "C-classification", kernel = "radial")
+svm_predictions <- predict(svm_model, x_test_scaled)
+print(svm_predictions)
+svm_predictions <- factor(svm_predictions, levels = levels(as.factor(test_data$M)))
+print(levels(svm_predictions))
+print(levels(as.factor(test_data$M)))
+conf_svm = confusionMatrix(svm_predictions, as.factor(test_data$M))
+print(conf_svm)
+```
+
+The SVM model achieved an overall **accuracy of 41.18%**, with a Kappa score of 0.2741, indicating fair agreement. Class 2 performed the best with 90.91% sensitivity and 93.70% balanced accuracy, while Class 4 had the weakest performance (5.88% sensitivity and 50.00% balanced accuracy). The confusion matrix highlights misclassifications, especially for Classes 3, 4, and 5, suggesting challenges in separating overlapping data points effectively.
