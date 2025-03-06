@@ -1,0 +1,440 @@
+---
+title: "tharunte_Homework6"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+
+# Chapter 9 R Commands
+
+```{R}
+library(TSA)
+```
+## Exhibit 9.2 Forecasts and Limits for the Temperature Cosine Trend
+```{R}
+data(tempdub)
+tempdub1=ts(c(tempdub,rep(NA,24)),start=start(tempdub),freq=frequency(tempdub)) 
+```
+```{R}
+har.=harmonic(tempdub,1)
+m5.tempdub=arima(tempdub,order=c(0,0,0),xreg=har.)
+```
+```{R}
+har.=harmonic(tempdub,1); model4=lm(tempdub~har.)
+summary(model4)
+```
+```{R}
+arima(tempdub,order=c(0,0,0),xreg=data.frame(har.,trend=time(tempdub)))
+m5.tempdub
+```
+```{R}
+newhar.=harmonic(ts(rep(1,24), start=c(1976,1),freq=12),1)
+plot(m5.tempdub,n.ahead=24,n1=c(1972,1),newxreg=newhar., col = 'red', type='b',ylab='Temperature',
+xlab='Year')
+```
+## Exhibit 9.3
+
+```{R}
+data(color)
+m1.color=arima(color,order=c(1,0,0))
+plot(m1.color,n.ahead=12,col='red',type='b',xlab='Year',ylab='Temperature')
+abline(h=coef(m1.color)[names(coef(m1.color))=='intercept'])
+```
+```{R}
+v=1:5
+names(v)
+names(v)=c('A','B','C','D','E')
+names(v)=='C'
+v[names(v)=='C'] 
+v[3]
+v[-3]
+```
+
+# Chapter 10 R Commands
+
+```{R}
+plot(y=ARMAacf(ma=c(0.5,rep(0,10),0.8,0.4),lag.max=13)[-1],x=1:13,type='h',xlab='Lag k',
+ylab=expression(rho[k]),axes=F,ylim=c(0,0.6))
+points(y=ARMAacf(ma=c(0.5,rep(0,10),0.8,0.4),lag.max=13)[-1],x=1:13,pch=20)
+abline(h=0)
+axis(1,at=1:13,
+labels=c(1,NA,3,NA,5,NA,7,NA,9,NA,11,NA,13))
+axis(2)
+```
+
+## Exhibit 10.10
+```{R}
+m1.co2=arima(co2,order=c(0,1,1),seasonal=list(order=c(0,1,1),period=12))
+```
+```{R}
+m1.co2
+# This prints a summary of the fitted seasonal ARIMA model.
+```
+
+# Question 2
+
+## Exercise 9.9 Simulate an AR(1) process with φ = 0.8 and μ = 100. Simulate 48 values but set aside the last 8 values to compare forecasts to actual values
+
+```{R}
+set.seed(132456)
+series=arima.sim(n=48,list(ar=0.8))+100
+series
+```
+
+```{R}
+future=window(series,start=41)
+series=window(series,end=40) # Set aside future
+future
+```
+(a) Using the first 40 values of the series, find the values for the maximum likelihood estimates of φ and μ
+
+```{R}
+model=arima(series,order=c(1,0,0))
+model
+```
+The maximum likelihood estimates are quite accurate in this particular simulation.
+
+(b) Using the estimated model, forecast the next eight values of the series. Plot the series together with the eight
+forecasts. Place a horizontal line at the estimate of the process mean
+
+```{R}
+plot(model,n.ahead=8,ylab='Series & Forecasts',col=NULL,pch=19)
+# col=NULL suppresses plotting the prediction intervals
+abline(h=coef(model)[names(coef(model))=='intercept'])
+```
+
+(c) Compare the eight forecasts with the actual values that you set aside.
+
+```{R}
+forecast_values <- predict(model, n.ahead = 8)$pred
+
+comparison <- data.frame(Actual = future, Forecast = forecast_values)
+print(comparison)
+
+error <- future - forecast_values
+cat("Forecast errors: ", error, "\n")
+# can use cbind
+```
+
+```{R}
+plot(model,n.ahead=8,ylab='Series, Forecasts, Actuals & Limits',pch=19)
+points(x=(41:48),y=future,pch=3) # Add the actual future values to the plot
+```
+Actual future series values are plotted as plus signs (+)
+
+The forecast errors are small, indicating that the AR(1) model has made accurate predictions, with values close to zero. The model's forecasts generally fall within the 95% confidence limits, suggesting good predictive performance.
+
+(d) Plot the forecasts together with 95% forecast limits. Do the actual values fall within the forecast limits?
+
+```{R}
+# Including Prediction Intervals (95% by default)
+plot(model,n.ahead=8,ylab='Series, Forecasts, Actuals & Limits',pch=19)
+points(x=(41:48),y=future,pch=3) # Add the actual future values to the plot
+abline(h=coef(model)[names(coef(model))=='intercept'])
+```
+The forecast prediction limits shown as dotted lines. Yes it falls with in the limits.
+
+(e) Repeat parts (a) through (d) with a new simulated series using the same values of the parameters and the
+same sample size
+
+```{R}
+set.seed(98765)
+series=arima.sim(n=48,list(ar=0.8))+100
+future=window(series,start=41)
+series=window(series,end=40) # Set aside future
+model=arima(series,order=c(1,0,0))
+plot(model,n.ahead=8,ylab='Series & Forecasts',col=NULL,pch=19)
+abline(h=coef(model)[names(coef(model))=='intercept'])
+plot(model,n.ahead=8,ylab='Series, Forecasts, Actuals & Limits',pch=19)
+points(x=(41:48),y=future,pch=3) # Add the actual future values to the plot
+abline(h=coef(model)[names(coef(model))=='intercept'])
+```
+
+## Exercise 9.12 Simulate an MA(2) process with θ1 = 1, θ2 = −0.6, and μ = 100. Simulate 36 values but set aside the last 4 values with compare forecasts to actual values.
+
+```{R}
+set.seed(123)
+series=arima.sim(n=36,list(ma=c(-1,0.6)))+100
+actual=window(series,start=33)
+series=window(series,end=32)
+```
+(a) Using the first 32 values of the series, find the values for the maximum likelihood estimates of the θ’s and μ
+
+```{R}
+model=arima(series,order=c(0,0,2))
+model
+```
+(b) Using the estimated model, forecast the next four values of the series. Plot the series together with the four
+forecasts. Place a horizontal line at the estimate of the process mean.
+
+```{R}
+result_graph = plot(model, n.ahead = 4, col = NULL, pch = 19)
+abline(h=coef(model)[names(coef(model)) == "intercept"])
+```
+(c) What is special about the forecasts at lead times 3 and 4?
+
+For the MA(2) model they are simply the estimated process mean. (data points are on th mean line)
+
+(d) Compare the four forecasts with the actual values that you set aside
+
+```{R}
+cbind(actual,result_graph$pred)
+```
+(e) Plot the forecasts together with 95% forecast limits. Do the actual values fall within the forecast limits?
+
+```{R}
+plot(model, n.ahead = 4, ylab = "Series, Forecasts, Actuals & Limits",type = 'o',pch = 19)
+points(x=(33:36), y = actual, pch = 3)
+abline(h=coef(model)[names(coef(model))=="intercept"])
+```
+
+The actuals are all within the forecast limits.
+
+(f) Repeat parts (a) through (e) with a new simulated series using the same values of the parameters and same
+sample size.
+
+```{R}
+set.seed(987)
+series=arima.sim(n=36,list(ma=c(-1,0.6)))+100
+actual=window(series,start=33)
+series=window(series,end=32)
+model=arima(series,order=c(0,0,2))
+result_graph = plot(model, n.ahead = 4, col = NULL, pch = 19)
+abline(h=coef(model)[names(coef(model)) == "intercept"])
+cbind(actual,result_graph$pred)
+plot(model, n.ahead = 4, ylab = "Series, Forecasts, Actuals & Limits",type = 'o',pch = 19)
+points(x=(33:36), y = actual, pch = 3)
+abline(h=coef(model)[names(coef(model))=="intercept"])
+```
+
+For this simulation and this model, the forecasts are rather far from the actual values.
+
+## Exercise 9.13 Simulate an ARMA(1,1) process with φ = 0.7, θ = −0.5, and μ = 100. Simulate 50 values but set aside the last 10 values to compare forecasts with actual values
+
+```{R}
+set.seed(5323)
+series = arima.sim(n=50, list(ar=0.7,ma=-0.5))+100
+actual = window(series, start = 41)
+series_to_40 = window(series, end=40)
+```
+(a) Using the first 40 values of the series, find the values for the maximum likelihood estimates of φ, θ, and μ
+
+```{R}
+model = arima(series_to_40,order=c(1,0,1))
+model
+```
+(b) Using the estimated model, forecast the next ten values of the series. Plot the series together with the ten
+forecasts. Place a horizontal line at the estimate of the process mean.
+
+```{R}
+result_graph = plot(model, n.ahead=10, ylab = "Series & Forecasts", col = NULL, pch=19)
+abline(h = coef(model)[names(coef(model))=="intercept"])
+```
+
+The forecfasts approach the series mean fairly quickly.
+
+(c) Compare the ten forecasts with the actual values that you set aside.
+
+```{R}
+cbind(actual, result_graph$pred)
+```
+The values are quite close to each other
+
+(d) Plot the forecasts together with 95% forecast limits. Do the actual values fall within the forecast limits?
+
+```{R}
+plot(model, n.ahed=10,ylab='Series, Forecasts, Actuals & Limits', pch = 19)
+points(x=(41:50), y = actual, pch = 3)
+abline(h = coef(model)[names(coef(model))=="intercept"])
+```
+The actual values are within the forecast limits but forecasts decay to the estimated process mean rather quickly and the prediction limits are quite wide.
+
+(e) Repeat parts (a) through (d) with a new simulated series using the same values of the parameters and same
+sample size.
+
+```{R}
+set.seed(2353)
+series = arima.sim(n=50, list(ar=0.7,ma=-0.5))+100
+actual = window(series, start = 41)
+series_to_40 = window(series, end=40)
+model = arima(series_to_40,order=c(1,0,1))
+result_graph = plot(model, n.ahead=10, ylab = "Series & Forecasts", col = NULL, pch=19)
+abline(h = coef(model)[names(coef(model))=="intercept"])
+cbind(actual, result_graph$pred)
+plot(model, n.ahed=10,ylab='Series, Forecasts, Actuals & Limits', pch = 19)
+points(x=(41:50), y = actual, pch = 3)
+abline(h = coef(model)[names(coef(model))=="intercept"])
+```
+
+## Exercise 9.16 Simulate an IMA(2,2) process with θ1 = 1, θ2 = −0.75, and θ0 = 0. Simulate 45 values, but set aside the last five values to compare forecasts with actual values.
+
+```{R}
+set.seed(8899)
+series = arima.sim(n = 45, list(order = c(0, 2, 2), ma = c(-1, 0.75)))
+# series = arima.sim(n = 45, list(ma = c(-1, 0.75)))
+series = (series[-1])[-1]
+actual = window(series,start = 41)
+series_upto_40 = window(series, end=40)
+series
+```
+
+(a) Using the first 40 values of the series, find the value for the maximum likelihood estimate of θ1 and θ2.
+
+```{R}
+model=arima(series_upto_40,order=c(0,2,2))
+model
+```
+(b) Using the estimated model, forecast the next five values of the series. Plot the series together with the five
+forecasts. What is special about the forecasts?
+
+```{R}
+result=plot(model,n.ahead=5,ylab='Series & Forecasts',col=NULL,pch=19)
+```
+
+The forecasts seem to follow a straight line.
+
+
+(c) Compare the five forecasts with the actual values that you set aside.
+
+```{R}
+forecast=result$pred
+cbind(actual,forecast)
+```
+
+All of the forecasts are a bit higher than the actual values
+
+(d) Plot the forecasts together with 95% forecast limits. Do the actual values fall within the forecast limits?
+
+```{R}
+plot(model,n1=38,n.ahead=5,ylab='Series, Forecasts, Actuals & Limits', pch=19)
+points(x=seq(41,45),y=actual,pch=3)
+```
+Yes, actual values fall within the forecast limits.
+As the lead time increases, the forecast limits widen, which is typical for nonstationary models. The forecast for lead time 1 is very close to the lower forecast limit.
+
+(e) Repeat parts (a) through (d) with a new simulated series using the same values of the parameters and same
+sample size.
+
+```{R}
+set.seed(9876)
+series = arima.sim(n = 45, list(order = c(0, 2, 2), ma = c(-1, 0.75)))
+# series = arima.sim(n = 45, list(ma = c(-1, 0.75)))
+series = (series[-1])[-1]
+actual = window(series,start = 41)
+series_upto_40 = window(series, end=40)
+series
+model=arima(series_upto_40,order=c(0,2,2))
+result=plot(model,n.ahead=5,ylab='Series & Forecasts',col=NULL,pch=19)
+forecast=result$pred
+cbind(actual,forecast)
+plot(model,n1=38,n.ahead=5,ylab='Series, Forecasts, Actuals & Limits', pch=19)
+points(x=seq(41,45),y=actual,pch=3)
+```
+
+## Exercise 10.8 Consider the Alert, Canada, monthly carbon dioxide time series shown in Exhibit (10.1), page 227. The data are in the file named co2.
+(a) Fit a deterministic seasonal means plus linear time trend model to these data. Are any of the regression coefficients “statistically significant”?
+
+```{R}
+data(co2)
+month.=season(co2)
+trend=time(co2)
+model=lm(co2~month.+trend)
+summary(model)
+```
+All of the regression coefficients are statistically significant except for the seasonal effects for February and June. Those two have p-values just above 0.05.
+
+(b) What is the multiple R-squared for this model?
+
+Multiple R-squared:  0.9902
+
+(c) Now calculate the sample autocorrelation of the residuals from this model. Interpret the results.
+
+```{R}
+acf(residuals(model))
+```
+
+Clearly, this deterministic trend model has not captured the autocorrelation in this time series. The seasonal ARIMA
+model illustrated in Chapter 10 is a much better model for these data.
+
+## Exercise 10.9 The monthly airline passenger time series, first investigated in Box and Jenkins (1976), is considered a classic time series. The data are in the file named airline. [Typo: The filename is airpass.]
+
+(a) Display the time series plots of both the original series and the logarithms of the series. Argue that taking
+logs is an appropriate transformation.
+
+```{R}
+data(airpass)
+plot(airpass, type='o',ylab='Air Passengers')
+plot(log(airpass), type='o',ylab='Log(Air Passengers)')
+```
+
+In the original series, the amplitude of seasonal fluctuations increases over time, indicating a non-constant variance.
+In the log-transformed series, the seasonal fluctuations appear more stable, indicating that the logarithmic transformation has stabilized the variance.
+
+(b) Display and interpret the time series plots of the first difference of the logged series.
+
+```{R}
+plot(diff(log(airpass)),type='o',ylab='Difference of Log(Air Passengers)')
+```
+
+The first difference of the logged airline passenger series removes the trend, making the series approximately stationary. The seasonal pattern is still visible, indicating periodic fluctuations in the rate of change of passengers. This transformation stabilizes the variance and prepares the series for time series modeling like ARIMA.
+
+```{R}
+plot(diff(log(airpass)),type='l',ylab='Difference of Log(Air Passengers)')
+points(diff(log(airpass)),x=time(diff(log(airpass))),pch=as.vector(season(diff(log(airpass)))))
+```
+The plot shows the first differenced logarithm of airline passenger data, with points labeled by their corresponding seasons (months). The seasonal patterns are evident, as similar fluctuations repeat annually, confirming the importance of seasonality. This transformation stabilizes variance and removes the trend, making the series suitable for seasonal time series modeling like SARIMA.
+
+(c) Display and interpret the time series plot of the seasonal difference of the first difference of the logged series
+
+```{R}
+plot(diff(diff(log(airpass)),lag=12),type='l', ylab='First & Seasonal Differences of Log(AirPass)')
+points(diff(diff(log(airpass)),lag=12),x=time(diff(diff(log(airpass)),lag=12)), 
+pch=as.vector(season(diff(diff(log(airpass)),lag=12))))
+```
+
+The plot represents the seasonal difference of the first difference of the logged airline passenger series, highlighting both seasonal and non-seasonal stationarity. By applying the first difference and seasonal differencing (lag = 12), the trend and seasonal patterns are removed, resulting in an approximately stationary series. The remaining fluctuations primarily reflect random noise and residual variability, suitable for modeling with SARIMA.
+
+(d) Calculate and interpret the sample ACF of the seasonal difference of the first difference of the logged series.
+
+```{R}
+acf(as.vector(diff(diff(log(airpass)),lag=12)),ci.type='ma', 
+main='First & Seasonal Differences of Log(AirPass)')
+```
+
+The ACF plot of the seasonal difference of the first difference of the logged series shows that significant autocorrelations exist at seasonal lags (e.g., 12, 24), indicating residual seasonality. The decay of autocorrelations at other lags suggests the presence of non-seasonal patterns. This behavior supports the need for a SARIMA model to account for both seasonal and non-seasonal components in the time series.
+
+(e) Fit the “airline model” (ARIMA(0,1,1)×(0,1,1)12) to the logged series
+
+```{R}
+airline_model=arima(log(airpass),order=c(0,1,1),seasonal=list(order=c(0,1,1),period=12))
+airline_model
+```
+
+(f) Investigate diagnostics for this model, including autocorrelation and normality of the residuals.
+
+```{R}
+tsdiag(airline_model)
+```
+
+Normality of Residuals:
+```{R}
+hist(residuals(airline_model),xlab='Residuals')
+qqnorm(residuals(airline_model), main = "Q-Q Plot of Residuals")
+qqline(residuals(airline_model))
+```
+
+```{R}
+shapiro.test(residuals(airline_model))
+```
+The Shapiro-Wilk test does not reject normality of the error terms at any of the usual significance levels and we procede to use the model for forecasting.
+
+
+(g) Produce forecasts for this series with a lead time of two years. Be sure to include forecast limits
+
+```{R}
+plot(airline_model,n1=c(1969,1),n.ahead=24,pch=19,ylab='Log(Air Passengers)')
+```
+
+
+The plot shows the model’s forecast of log-transformed airline passengers with an upward trend and seasonal fluctuations, matching the historical pattern. The widening confidence intervals indicate increasing uncertainty as the forecast horizon extends.

@@ -1,0 +1,82 @@
+```{R}
+library(uroot)
+install.packages("tseries")
+library(tseries)
+## ADF test with constant, trend and seasonal dummies.
+data(AirPassengers)
+lairp <- log(AirPassengers)
+adf.out1 <- ADF.test(wts=lairp, itsd=c(1,1,c(1:11)),
+                regvar=0, selectlags=list(mode="bic", Pmax=12))
+adf.out1
+adf.out2 <- ADF.test(wts=lairp, itsd=c(1,1,c(1:11)),
+                regvar=0, selectlags=list(mode="signf", Pmax=NULL))
+adf.out2
+```
+
+```{R}
+set.seed(0)
+n <- 48
+phi <- 0.7
+n <- 48
+ar1_simulate <- function(n, phi) {
+  y <- numeric(n)
+  e <- rnorm(n)
+  for (t in 2:n) {
+    y[t] <- phi * y[t-1] + e[t]
+  }
+  return(y)
+}
+
+ar1_series <- ar1_simulate(n, phi)
+sample_acf <- acf(ar1_series, lag.max = 5, plot = FALSE)$acf[,,1]
+
+print(paste("Sample ACF at lag 1:", sample_acf[2]))
+print(paste("Sample ACF at lag 5:", sample_acf[6]))
+```
+
+```{R}
+set.seed(1234) 
+n <- 48
+phi <- 0.7
+
+ar1_series <- arima.sim(n = n, list(ar = phi))
+```
+
+
+```{R}
+# Function to calculate autocorrelation at lag k
+calc_acf <- function(series, k) {
+  n <- length(series)
+  mean_series <- mean(series)
+  numerator <- sum((series[(k+1):n] - mean_series) * (series[1:(n-k)] - mean_series))
+  denominator <- sum((series - mean_series)^2)
+  return(numerator / denominator)
+}
+
+# Calculate autocorrelations for lag 1 and lag 5
+lag_1_manual <- calc_acf(ar1_series, 2)
+lag_5_manual <- calc_acf(ar1_series, 5)
+
+cat("Manual autocorrelation at lag 1:", lag_1_manual, "\n")
+cat("Manual autocorrelation at lag 5:", lag_5_manual, "\n")
+
+```
+
+```{R}
+# b - Calculate sample autocorrelations
+acf_values <- acf(ar1_series, plot = FALSE)$acf
+
+lag_1_sample <- acf_values[2]  # lag 1 (1st element is lag 0)
+lag_5_sample <- acf_values[6]  # lag 5
+
+cat("Sample autocorrelation at lag 1:", lag_1_sample, "\n")
+cat("Sample autocorrelation at lag 5:", lag_5_sample, "\n")
+```
+
+```{R}
+acf_values
+```
+
+```{R}
+acf(acf_values)
+```

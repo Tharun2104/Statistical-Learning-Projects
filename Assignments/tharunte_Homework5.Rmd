@@ -1,0 +1,554 @@
+---
+title: "tharunte_Homework5"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+# Chapter 6 R commands
+
+```{r}
+library(TSA)
+# install.packages("uroot")
+library(uroot)
+```
+
+## Exhibit 6.5 Sample Autocorrelation of an MA(1) Process with θ = 0
+```{R}
+data(ma1.1.s)
+win.graph(width=4.875,height=3,pointsize=8)
+acf(ma1.1.s,xaxp=c(0,20,10))
+```
+## Exhibit 6.6 Alternative Bounds for the Sample ACF for the MA(1) Process
+```{R}
+acf(ma1.1.s,ci.type='ma',xaxp=c(0,20,10))
+```
+
+## Exhibit 6.7 Sample Autocorrelation for an MA(1) Process with θ = −0.9
+```{R}
+data(ma1.2.s); acf(ma1.2.s,xaxp=c(0,20,10))
+```
+Exhibit 6.8 Sample ACF for an MA(2) Process with θ1 = 1 and θ2 = −0.6
+
+```{R}
+data(ma2.s); acf(ma2.s,xaxp=c(0,20,10))
+```
+
+## Exhibit 6.9 Alternative Bounds for the Sample ACF for the MA(2) Process
+```{R}
+acf(ma2.s,ci.type='ma',xaxp=c(0,20,10))
+```
+## Exhibit 6.11 on page 121.
+```{R}
+data(ar1.s)
+pacf(ar1.s,xaxp=c(0,20,10))
+```
+## Exhibit 6.17 on page 124.
+```{R}
+data(arma11.s)
+eacf(arma11.s)
+```
+```{R}
+eacf(arma11.s,ar.max=10,ma.max=10)
+```
+
+```{R}
+# install.packages("tseries")
+library(tseries)
+```
+
+```{R}
+data("rwalk")
+ar(diff(rwalk))
+```
+
+```{R}
+# ADF.test(rwalk,selectlags=list(mode=c(1,2,3,4,5,6,7,8),Pmax=8),itsd=c(1,0,0))
+# ADF.test(rwalk,selectlags=list(Pmax=0),itsd=c(1,0,0))
+```
+
+## Exhibit 6.22 on page 132.
+```{R}
+set.seed(92397)
+test=arima.sim(model=list(ar=c(rep(0,11),.8),ma=c(rep(0,11),0.7)),n=120)
+```
+
+```{r}
+res = armasubsets(y = test, nar = 14, nma = 14, y.name = 'test', ar.method = 'ols')
+plot(res)
+```
+
+# Chapter 7 R Commands
+
+```{R}
+estimate.ma1.mom=function(x){r=acf(x,plot=F)$acf[1];
+if (abs(r)<0.5) return((-1+sqrt(1-4*r^2))/(2*r))
+else return(NA)}
+
+# Example of using the function with a simulated MA(1) series
+data(ma1.2.s)  # Load the MA(1) simulated series
+estimate.ma1.mom(ma1.2.s)  # Estimate the MA(1) coefficient
+```
+
+```{R}
+data(ar1.s)
+ar(ar1.s,order.max=1,AIC=F,method='yw')
+```
+
+## Exhibit 7.6, page 165.
+```{R}
+data(arma11.s)
+arima(arma11.s, order=c(1,0,1),method='CSS')
+```
+
+## Exhibit 7.10 on page 168.
+```{R}
+data('hare')
+res=arima(sqrt(hare),order=c(3,0,0))
+print(res)
+```
+```{R}
+set.seed(12345)
+coefm.cond.norm = arima.boot(res, cond.boot = TRUE, is.normal = TRUE, B = 1000, init = sqrt(hare))  # Bootstrap analysis
+signif(apply(coefm.cond.norm, 2, function(x) { quantile(x, c(0.025, 0.975), na.rm = T) }), 3)
+```
+```{R}
+temp=apply(coefm.cond.norm,2,function(x)
+{quantile (x,c(.025,.975),na.rm=T)})
+signif(temp,3)
+```
+# Chapter 8 R Commands
+
+
+## Exhibit 8.2 on page 177.
+
+```{R}
+data(hare)
+m1.hare=arima(sqrt(hare),order=c(3,0,0))
+m1.hare
+```
+
+```{R}
+m2.hare=arima(sqrt(hare),order=c(3,0,0),fixed=c(NA,0,NA,NA))
+m2.hare
+```
+```{R}
+plot(rstandard(m2.hare),ylab='Standardized Residuals',type='b')
+abline(h=0)
+```
+# Exhibit 8.12 on page 185 (prefaced by some commands in Exhibit 8.1 on page 176)
+```{R}
+data(color)
+m1.color=arima(color,order=c(1,0,0))
+tsdiag(m1.color,gof=15,omit.initial=F)
+```
+
+# Question 2
+
+6.20 : Simulate an AR(1) time series with n = 48 and with φ = 0.7.
+(a) Calculate the theoretical autocorrelations at lag 1 and lag 5 for this model.
+(b) Calculate the sample autocorrelations at lag 1 and lag 5 and compare the values with their theoretical values. Use Equations (6.1.5) and (6.1.6) page 111,
+to quantify the comparisons.
+(c) Repeat part (b) with a new simulation. Describe how the precision of the estimate varies with different samples selected under identical conditions.
+
+```{R}
+set.seed(1234) 
+n <- 48
+phi <- 0.7
+
+ar1_series <- arima.sim(n = n, list(ar = phi))
+```
+```{R}
+theoretical_lag_1 <- phi^1
+theoretical_lag_5 <- phi^5
+
+cat("Theoretical autocorrelation at lag 1:", theoretical_lag_1, "\n")
+cat("Theoretical autocorrelation at lag 5:", theoretical_lag_5, "\n")
+```
+
+```{R}
+# b - Calculate sample autocorrelations
+acf_values <- acf(ar1_series, plot = FALSE)$acf
+
+lag_1_sample <- acf_values[1]
+lag_5_sample <- acf_values[5]
+
+cat("Sample autocorrelation at lag 1:", lag_1_sample, "\n")
+cat("Sample autocorrelation at lag 5:", lag_5_sample, "\n")
+```
+
+
+```{R}
+# Comparison using Equations (6.1.5) and (6.1.6):
+# Variance estimate
+n <- length(ar1_series)
+var_acf <- 1 / n
+
+cat("Variance of sample autocorrelation estimate:", var_acf, "\n")
+cat("Difference at lag 1:", abs(lag_1_sample - theoretical_lag_1), "\n")
+cat("Difference at lag 5:", abs(lag_5_sample - theoretical_lag_5), "\n")
+```
+```{R}
+# c- Repeat part (b) with a new simulation
+set.seed(42)
+ar1_simulation <- arima.sim(n = n, list(ar = phi))
+
+acf_values_simulation <- acf(ar1_simulation, plot = FALSE)$acf
+
+sample_acf_lag1 <- acf_values_simulation[1]
+sample_acf_lag5 <- acf_values_simulation[5]
+
+cat("Sample autocorrelation at lag 1 (new simulation):", sample_acf_lag1, "\n")
+cat("Sample autocorrelation at lag 5 (new simulation):", sample_acf_lag5, "\n")
+cat("Difference at lag 1 (new simulation):", abs(sample_acf_lag1 - theoretical_lag_1), "\n")
+cat("Difference at lag 5 (new simulation):", abs(sample_acf_lag5 - theoretical_lag_5), "\n")
+
+
+```
+
+Repeating the simulation shows that sample autocorrelations vary due to randomness, even under identical conditions. Estimates at shorter lags (e.g., lag 1) are more precise and closer to theoretical values, while those at longer lags (e.g., lag 5) are less accurate and more variable. This variability highlights the impact of sample size and lag on the precision of autocorrelation estimates.
+
+---------------------------------------------------------------------------------------------------------------
+
+6.21: Simulate an MA(1) time series with n = 60 and with θ = 0.5.
+(a) Calculate the theoretical autocorrelation at lag 1 for this model.
+(b) Calculate the sample autocorrelation at lag 1, and compare the value with its
+theoretical value. Use Exhibit 6.2 on page 112, to quantify the comparisons.
+(c) Repeat part (b) with a new simulation. Describe how the precision of the estimate varies with different samples selected under identical conditions
+
+
+```{R}
+n <- 60    
+theta <- 0.5
+
+ma1 <- arima.sim(model=list(ma=c(.5)),n=60)
+ma1
+```
+
+```{R}
+rho_1_theoretical <- theta / (1 + theta^2)
+cat("Theoretical autocorrelation at lag 1:", rho_1_theoretical, "\n")
+```
+
+
+```{R}
+# (b) Calculate the sample autocorrelation at lag 1
+acf_values <- acf(ma1, plot = FALSE)$acf
+rho_1_sample <- acf_values[1]
+
+# Standard error for sample autocorrelation
+se_rho <- 1 / sqrt(n)
+
+cat("Sample autocorrelation at lag 1:", rho_1_sample, "\n")
+cat("Difference between sample and theoretical values:", abs(rho_1_sample - rho_1_theoretical), "\n")
+cat("Standard error for the sample autocorrelation:", se_rho, "\n")
+```
+
+```{R}
+# Repeat simulation
+set.seed(98)
+ma1_series_new <- arima.sim(n = n, list(ma = theta))
+
+# Compute sample autocorrelation for the new simulation
+acf_values_new <- acf(ma1_series_new, plot = FALSE)$acf
+rho_1_sample_new <- acf_values_new[1]
+
+cat("Sample autocorrelation at lag 1 (new simulation):", rho_1_sample_new, "\n")
+cat("Difference between new sample and theoretical values:", abs(rho_1_sample_new - rho_1_theoretical), "\n")
+cat("Standard error for the sample autocorrelation:", se_rho, "\n")
+
+```
+
+
+Repeating the simulation shows that sample autocorrelations at lag 1 vary slightly across different samples due to randomness. The sample autocorrelation values are generally close to the theoretical value, with differences falling within the expected standard error range. This highlights that while estimates are reasonably precise, some variation is inherent due to sampling.
+
+--------------------------------------------------------------------------------------------------
+
+
+6.25 Simulate an AR(1) time series of length n = 36 with φ = 0.7.
+(a) Calculate and plot the theoretical autocorrelation function for this model. Plot
+sufficient lags until the correlations are negligible.
+(b) Calculate and plot the sample ACF for your simulated series. How well do the
+values and patterns match the theoretical ACF from part (a)?
+(c) What are the theoretical partial autocorrelations for this model?
+(d) Calculate and plot the sample ACF for your simulated series. How well do the
+values and patterns match the theoretical ACF from part (a)? Use the
+large-sample standard errors reported in Exhibit 6.1 on page 111, to quantify
+your answer.
+(e) Calculate and plot the sample PACF for your simulated series. How well do
+the values and patterns match the theoretical ACF from part (c)? Use the
+large-sample standard errors reported on page 115 to quantify your answer
+
+```{R}
+n <- 36
+phi <- 0.7
+ar1_series <- arima.sim(n = n, list(ar = phi))
+```
+
+```{R}
+# (a) Theoretical ACF for AR(1) Model
+
+# Plot the theoretical ACF
+max_lag <- n-1  # Plot until lag 35
+theoretical_acf_values <- phi^(0:max_lag)
+plot(0:max_lag, theoretical_acf_values, type = "h", lwd = 2, 
+     xlab = "Lag", ylab = "Theoretical ACF", main = "Theoretical ACF for AR(1) Process")
+abline(h = 0, col = "red", lty = 2)  # Add a horizontal line at 0
+
+```
+
+```{R}
+# (b) Calculate and plot the sample ACF
+acf_values <- acf(ar1_series, plot = FALSE)$acf
+acf_values
+
+# Plot the Sample ACF
+acf(ar1_series)
+```
+(c) Theoretical Partial Autocorrelations for AR(1)
+The PACF for AR(1) is phi(0.7) for lag 1, and 0 for lags greater than 1
+
+```{R}
+# Overlay theoretical ACF on the sample ACF plot for comparison
+plot(acf_values, ylim = c(-1, 1), main = "Sample vs Theoretical ACF for AR(1) Process")
+points(0:max_lag, theoretical_acf_values, type = "h", lwd = 2, col = "blue") 
+
+legend("topright", legend = c("Sample ACF", "Theoretical ACF"), 
+       col = c("red", "blue"), lwd = 2)
+```
+```{R}
+acf_se <- 1 / sqrt(n)
+
+for (k in 1:length(acf_values)) {
+  diff <- abs(acf_values[k] - theoretical_acf_values[k])  # Comparing lags 1 to max_lag
+  cat("Lag", k, ": Sample ACF =", acf_values[k], "Theoretical ACF =", theoretical_acf_values[k], 
+      "Difference =", diff, "\n")
+  
+  # Quantify the difference using the standard error
+  cat("Lag", k, ": Difference as standard errors = ", diff / acf_se, "\n")
+}
+```
+
+
+```{R}
+# (e) Calculate and plot the sample PACF
+pacf_values <- pacf(ar1_series, plot = FALSE)$acf  
+pacf_values
+```
+For AR(1): Sample PACF should match theoretical PACF with significant value at lag 1, zero for others
+
+```{R}
+n <- length(ar1_series)
+se <- 1 / sqrt(n)
+
+# Theoretical PACF for AR(1)
+theoretical_pacf <- c(0.7, rep(0, length(pacf_values) - 1))
+
+# Evaluate and compare
+for (k in 1:length(pacf_values)) {
+  diff <- abs(pacf_values[k] - theoretical_pacf[k])
+  cat("Lag", k, ": Sample PACF =", pacf_values[k],
+      "Theoretical PACF =", theoretical_pacf[k],
+      "Difference =", diff, "\n")
+  
+  # Quantify in terms of SE
+  cat("Lag", k, ": Difference in terms of SE =", diff / se, "\n\n")
+}
+```
+
+Analysis:
+
+From your provided PACF values:
+
+1. Lag 1: Sample PACF =0.7822, Theoretical PACF = 0.7, Difference = 0.0822.
+Difference in SE: 0.0822/0.1667≈0.49, indicating a close match.
+2. Lag k>1: The theoretical PACF is 0, but sample values vary around 0.
+Differences at higher lags can be quantified similarly in SE units.
+
+Observation:
+1. At lag 1, the sample PACF closely matches the theoretical value, as expected for AR(1).
+2. At higher lags, the sample PACF fluctuates around 0, with deviations due to random sampling noise.
+Most deviations are within 2 SE units, consistent with theoretical expectations.
+
+
+```{R}
+# Plot the Sample PACF
+pacf(ar1_series, main = "Sample PACF for AR(1) Process")
+abline(h = c(-1, 1) * se, col = "blue", lty = 2)
+```
+
+1. The sample PACF for lag 1 is consistent with the theoretical value (ϕ=0.7).
+2. The sample PACF at higher lags fluctuates near 0, as expected for an AR(1) process, with deviations mostly within the 95% confidence bounds (±2⋅SE).
+
+
+-------------------------------------------------------------------------------------------------
+
+6.36 The data file named robot contains a time series obtained from an industrial robot.
+The robot was put through a sequence of maneuvers, and the distance from a
+desired ending point was recorded in inches. This was repeated 324 times to form
+the time series.
+(a) Display the time series plot of the data. Based on this information, do these
+data appear to come from a stationary or nonstationary process?
+(b) Calculate and plot the sample ACF and PACF for these data. Based on this
+additional information, do these data appear to come from a stationary or nonstationary process?
+(c) Calculate and interpret the sample EACF.
+
+
+```{R}
+library(TSA)
+data(robot)
+```
+
+```{R}
+# a) time series plot of the data
+plot(robot)
+abline(h = mean(robot), col = "red", lty = 2)
+```
+
+
+In general, for a stationary process, ACF should die down quickly while PACF cuts off after a certain lag. If both decay slowly, this implies nonstationarity.
+```{R}
+par(mfrow = c(1, 2)) 
+acf(robot, main = "Sample ACF") 
+pacf(robot, main = "Sample PACF") 
+```
+
+Analysis
+The plots show concerning patterns that suggest non-stationarity in the time series:
+The ACF plot (left) shows a very slow decay pattern with many significant lags well above the significance bounds (dashed blue lines)
+The PACF plot (right) also displays a gradual decay rather than a sharp cutoff
+
+```{R}
+#(c) Calculate and Interpret the Sample EACF
+eacf(robot)
+```
+Interpretation:
+1. AR and MA model identification: Based on the EACF matrix, it seems that the time series data may have both AR (auto-regressive) and MA (moving average) components, with the possibility of an AR(1) or AR(2) process with significant MA terms up to lag 7 or lag 9.
+2. The presence of significant values in the EACF matrix at various lags suggests that an ARMA model (AutoRegressive Moving Average) might be suitable for this time series, with AR(1) or AR(2) and MA components up to around lag 7 or lag 9.
+3. You could consider fitting an ARMA(1,7) or ARMA(2,7) model based on these results, but further analysis and model diagnostics (e.g., AIC, BIC, residual analysis) would be required to finalize the best model.
+
+6.37 Calculate and interpret the sample EACF for the logarithms of the Los Angeles
+rainfall series. The data are in the file named larain. Do the results confirm that the
+logs are white noise?
+
+```{R}
+data(larain)
+larain_log <- log(larain)
+eacf(larain_log)
+```
+Interpretation:
+The EACF results for the logarithms of the Los Angeles rainfall series show several "x" marks, indicating significant autocorrelations at various lags. This suggests that the data are not white noise and likely exhibit some underlying structure, such as autoregressive or moving average processes.
+
+-------------------------------------------------------------------------------------------
+
+
+8.4 Simulate an AR(1) model with n = 30 and φ = 0.5.
+(a) Fit the correctly specified AR(1) model and look at a time series plot of the
+residuals. Does the plot support the AR(1) specification?
+(b) Display a normal quantile-quantile plot of the standardized residuals. Does
+the plot support the AR(1) specification?
+(c) Display the sample ACF of the residuals. Does the plot support the AR(1)
+specification?
+(d) Calculate the Ljung-Box statistic summing to K = 8. Does this statistic support the AR(1) specification?
+
+
+```{R}
+set.seed(98)
+n <- 30
+phi <- 0.5
+ar1_series <- arima.sim(n = n, list(ar = phi))
+ar1_series
+```
+
+```{R}
+fit_ar1 <- arima(ar1_series, order = c(1, 0, 0))
+fit_ar1
+```
+```{R}
+par(mfrow= c(1, 1)) 
+plot(residuals(fit_ar1), main = "Time Series Plot of Residuals")
+abline(h = 0, col = "red", lty = 2)
+```
+
+The time series plot shows residuals from an AR(1) model that fluctuate around zero (shown by the red dashed line). The residuals appear to move randomly up and down without any clear pattern, ranging approximately between -2 and 1.5. This random behavior suggests the AR(1) model is a good fit for the data since there's no obvious systematic pattern left in the residuals.
+
+```{R}
+# b) normal quantile-quantile plot of the standardized residuals
+qqnorm(rstandard(fit_ar1), main = "Normal Q-Q Plot of Standardized Residuals")
+qqline(rstandard(fit_ar1), col = "red")
+```
+
+The Q-Q plot shows points following the red diagonal line quite closely, with only slight deviations at the extreme ends.
+
+```{R}
+# c) sample ACF of the residuals
+acf(residuals(fit_ar1), main = "Sample ACF of Residuals")
+```
+
+Conclusion
+The ACF plot of residuals strongly supports the AR(1) specification as it demonstrates that:
+No significant autocorrelation remains in the residuals
+The model has effectively captured the first-order autoregressive structure
+The residuals exhibit characteristics of white noise
+This indicates that an AR(1) model is an appropriate choice for this time series data.
+
+```{R}
+# d) Ljung-Box statistic
+Box.test(residuals(fit_ar1), lag = 8, type = "Ljung-Box")
+
+```
+p-value = 0.6934
+p-value is greater than 0.05, it suggests that there is no significant autocorrelation, and the AR(1) specification is supported.
+
+
+8.5 Simulate an MA(1) model with n = 36 and θ = −0.5.
+(a) Fit the correctly specified MA(1) model and look at a time series plot of the
+residuals. Does the plot support the MA(1) specification?
+(b) Display a normal quantile-quantile plot of the standardized residuals. Does
+the plot support the MA(1) specification?
+(c) Display the sample ACF of the residuals. Does the plot support the MA(1)
+specification?
+(d) Calculate the Ljung-Box statistic summing to K = 6. Does this statistic support the MA(1) specification?
+
+```{R}
+n <- 36
+theta <- -0.5
+ma1_series <- arima.sim(n = n, list(ma = theta))
+fit_ma1 <- arima(ma1_series, order = c(0, 0, 1))
+```
+
+```{R}
+residuals_ma1 <- residuals(fit_ma1)
+plot(residuals_ma1, type = "l", main = "Time Series Plot of MA(1) Residuals", ylab = "Residuals", xlab = "Time")
+```
+
+The residuals appear to fluctuate randomly around zero
+There is no obvious pattern or systematic behavior
+The variation appears relatively constant throughout the series
+No clear trend or seasonality is visible
+
+```{R}
+qqnorm(rstandard(fit_ma1), main = "Normal Q-Q Plot of Standardized Residuals")
+qqline(rstandard(fit_ma1), col = "red")
+```
+
+The residuals lie on or near the red line, it suggests that the residuals follow a normal distribution, which supports the MA(1) specification.
+
+```{R}
+acf(residuals_ma1, main = "Sample ACF of MA(1) Residuals")
+```
+
+Concept:
+the sample ACF should show a significant spike at lag 1, and all subsequent lags should show no significant autocorrelation (close to zero). This behavior would support the MA(1) model specification.
+
+But our plot is randomly scattered and no significat spike at lag 1 hence it will not support MA(1) model
+
+
+```{R}
+# (d) Ljung-Box Statistic Summing to K = 6
+Box.test(residuals_ma1, lag = 6, type = "Ljung-Box")
+
+```
+p-value = 0.7874
+
+The p-value is large (greater than 0.05), it suggests no significant autocorrelation, which supports the MA(1) model.

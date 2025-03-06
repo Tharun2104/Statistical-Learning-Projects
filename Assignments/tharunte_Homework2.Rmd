@@ -1,0 +1,267 @@
+---
+title: "tharunte_Homework2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-09-26"
+---
+
+# 8. In Section 12.2.3, a formula for calculating PVE was given in Equation 12.10. We also saw that the PVE can be obtained using the sdev output of the prcomp() function. On the USArrests data, calculate PVE in two ways:
+
+## (a) Using the sdev output of the prcomp() function, as was done in Section 12.2.3.
+
+# LAB 12.5.1 & Applied 8. a)
+
+## Loading the dataset
+```{R}
+data("USArrests")
+head(USArrests)
+```
+## Row names of the data set
+```{R}
+states <- row.names(USArrests)
+states
+```
+## Column names
+```{R}
+names(USArrests)
+```
+## Finding the mean of all columns
+```{R}
+apply(USArrests, 2, mean)
+```
+
+## Finding variance for the columns
+```{R}
+apply(USArrests, 2, var)
+```
+
+## Applying PCA and scaling
+```{R}
+pr.out <- prcomp(USArrests, scale. =  TRUE)
+pr.out
+```
+
+```{R}
+names(pr.out)
+```
+```{R}
+pr.out$center
+```
+```{R}
+pr.out$scale
+```
+```{R}
+pr.out$rotation
+```
+
+```{R}
+dim(pr.out$x)
+```
+```{R}
+biplot(pr.out, scale =0)
+```
+```{R}
+pr.out$rotation = - pr.out$rotation
+pr.out$x = - pr.out$x
+biplot(pr.out , scale = 0)
+```
+```{R}
+pr.out$sdev
+```
+```{R}
+pr.var <- pr.out$sdev^2
+pr.var
+```
+## Calculating PVE
+```{R}
+PVE <- pr.var/sum(pr.var)
+PVE
+``` 
+```{R}
+par ( mfrow = c (1 , 2) )
+plot ( PVE , xlab = "Principal Component" ,
+ ylab = "Proportion of Variance Explained" , ylim = c (0 , 1) ,
+ type = "b" )
+ 3
+plot ( cumsum ( PVE ) , xlab = "Principal Component" ,
+ ylab = "Cumulative Proportion of Variance Explained" ,
+ ylim = c (0 , 1) , type = "b" )
+```
+
+-----------
+## 8b.By applying Equation 12.10 directly. That is, use the prcomp() function to compute the principal component loadings. Then, use those loadings in Equation 12.10 to obtain the PVE.
+
+## Get the principal component loadings (rotation matrix)
+```{R}
+loadings <- pr.out$rotation
+loadings
+```
+
+## Center and scale the dataset
+```{R}
+scaled_data <- scale(USArrests)
+```
+
+```{R}
+p <- ncol(scaled_data)  # Number of variables
+```
+
+## Sum of squared values of the scaled data
+```{R}
+ss_data <- sum(scaled_data^2)
+ss_data
+```
+## Calculate PVE for each principal component using the loadings (manual calculation)
+### pve_b contains the PVE values calculated using Equation 12.10.
+```{R}
+pve_b <- numeric(p) 
+
+for (m in 1:p) {
+  z_im <- scaled_data %*% loadings[,m]
+  ss_scores_m <- sum(z_im^2)
+  pve_b[m] <- ss_scores_m / ss_data
+}
+
+# Output the calculated PVE
+pve_b
+
+```
+The two methods giving the same results, confirming that both approaches are valid for calculating the proportion of variance explained.
+
+# LAB 12.5.2 Matrix Completion
+
+```{R}
+X<-data.matrix(scale(USArrests))
+pcob <- prcomp(X)
+summary(pcob)
+```
+## Applying Singular Value Decomposition
+```{R}
+sX <- svd(X)
+names(sX)
+round(sX$v, 3)
+```
+### Loadings
+```{R}
+pcob$rotation
+```
+```{R}
+t(sX$d * t(sX$u))
+```
+```{R}
+pcob$x
+```
+# we are putting some random values in the data set
+```{R}
+nomit <-  20
+set.seed(15)
+ina <- sample(seq(50), nomit)
+inb <- sample(1:4, nomit, replace=TRUE)
+Xna <- X
+index.na <- cbind(ina, inb)
+Xna[index.na] <- NA
+#index.na
+Xna
+```
+
+```{R}
+fit.svd <- function(X, M = 1){
+ svdob <- svd(X)
+ with(svdob,
+    u[, 1:M, drop = FALSE ] %*%
+    (d[1:M] * t(v[, 1:M, drop = FALSE]))
+)
+}
+  
+```
+## Removing Na with the mean of the data
+```{R}
+Xhat <- Xna
+xbar <- colMeans(Xna,na.rm = TRUE)
+Xhat[index.na] <- xbar[inb]
+```
+
+```{R}
+thresh <- 1e-7
+rel_err <- 1
+iter <- 0
+ismiss <- is.na(Xna)  # placing True at NA and False at remaining places
+mssold <- mean (( scale ( Xna , xbar , FALSE ) [! ismiss ]) ^2)
+mss0 <- mean ( Xna [! ismiss ]^2)
+```
+
+mssold thus stores the mean of the squared deviations of the non-missing data points from their corresponding column means.
+mss0 stores the mean of the squared values of the non-missing entries in Xna.
+
+```{R}
+while ( rel_err > thresh ) {
+iter <- iter + 1
+# Step 2( a )
+Xapp <- fit.svd ( Xhat , M = 1)
+# Step 2( b )
+Xhat [ ismiss ] <- Xapp [ ismiss ]
+# Step 2( c )
+mss <- mean ((( Xna - Xapp ) [! ismiss ]) ^2)
+rel_err <- ( mssold - mss ) / mss0
+mssold <- mss
+cat ( "Iter :" , iter , "MSS :" , mss ,
+"Rel.Err :" , rel_err , "\ n" ) }
+```
+
+```{R}
+cor(Xapp[ismiss],X[ismiss])
+```
+
+Notes:
+# **Matrix Completion Explained**
+
+Matrix completion is a technique used to fill in missing entries in a data matrix, often using a method that captures the underlying patterns and relationships within the data. Here’s a simple explanation of the matrix completion process, as illustrated by the code you provided.
+
+## **Step 1: Understanding Principal Component Analysis (PCA) and Singular Value Decomposition (SVD)**
+
+### **Principal Component Analysis (PCA)** 
+PCA is a technique that reduces the dimensionality of a data matrix by finding the main components (directions) that capture the most variation in the data. When data is complete, we can use PCA directly to identify these main components.
+
+### **Singular Value Decomposition (SVD)**
+SVD is a mathematical method similar to PCA. It decomposes a matrix \(X\) into three matrices:
+\[
+X = U \cdot D \cdot V^T
+\]
+- \(U\): A matrix containing left singular vectors
+- \(D\): A diagonal matrix with singular values
+- \(V\): A matrix containing right singular vectors
+
+This decomposition helps us understand the structure of the matrix \(X\).
+
+## **Step 2: Dealing with Missing Data**
+
+When data has missing values, we can't directly apply PCA or SVD. Instead, we use an iterative approach to estimate the missing values.
+
+## **The Iterative Algorithm for Matrix Completion**
+
+The goal of matrix completion is to estimate missing values by finding an approximate version of the original matrix using a specified number of principal components.
+
+### **Detailed Steps in the Algorithm:**
+
+1. **Initialization:**
+   - Create a matrix `Xna` with some missing values. We replace the missing values with the mean of the corresponding column to create an initial matrix `Xhat`.
+
+2. **Fitting a Low-Rank Matrix (SVD-based Approximation):**
+   - Define the `fit.svd` function: This function uses SVD to find an approximation of `Xhat` using only the first \(M\) principal components. It reconstructs a low-rank version of `Xhat` that captures the most important patterns.
+
+3. **Iterative Refinement:**
+   - **Step 2(a)**: Apply `fit.svd` to `Xhat` to get an approximate matrix `Xapp` using the first principal component.
+   - **Step 2(b)**: Replace the missing values in `Xhat` with the corresponding values from `Xapp`.
+   - **Step 2(c)**: Calculate the Mean Squared Error (MSS) to monitor the difference between the current approximation `Xapp` and the original observed values `Xna`. Compute the relative error to see how much improvement has been made.
+
+4. **Repeat the Iterative Steps Until Convergence:**
+   - The loop continues until the relative error falls below a small threshold, indicating that the matrix has been completed to a satisfactory level.
+
+## **Final Evaluation**
+
+- After the iterations stop, you can compare the filled-in values in `Xapp` (the reconstructed matrix) with the original data to see how well the missing values have been imputed.
+
+## **Conclusion**
+
+The matrix completion method leverages the idea that many datasets can be effectively approximated by a lower-dimensional structure (i.e., a few principal components). By iteratively refining the estimates of missing values using the dominant patterns in the data, we arrive at a completed matrix that best represents the underlying structure of the original data. This approach is particularly useful when dealing with datasets that have missing entries, and it’s a powerful technique for handling incomplete data in real-world scenarios.

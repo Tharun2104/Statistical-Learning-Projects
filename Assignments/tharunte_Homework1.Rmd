@@ -1,0 +1,55 @@
+---
+title: "tharunte_Homework1"
+output: pdf_document
+date: "2024-09-12"
+---
+
+Q1. Consider the USArrests data. We will now perform hierarchical clus-
+tering on the states.
+(a) Using hierarchical clustering with complete linkage and
+Euclidean distance, cluster the states.
+(b) Cut the dendrogram at a height that results in three distinct
+clusters. Which states belong to which clusters?
+12.6 Exercises 551
+(c) Hierarchically cluster the states using complete linkage and Eu-
+clidean distance, after scaling the variables to have standard de-
+viation one.
+(d) What effect does scaling the variables have on the hierarchical
+clustering obtained? In your opinion, should the variables be
+scaled before the inter-observation dissimilarities are computed?
+Provide a justification for your answer.
+
+# Load and view the dataset
+```{r}
+data("USArrests")
+head(USArrests)
+```
+## Without scaling the data
+```{R}
+hc.complete <- hclust(dist(USArrests), method = "complete")
+plot(hc.complete, main = "Dendrogram using Complete Linkage", xlab ="", sub = "", cex =0.8)
+```
+## Cutting the dendrogram to get 3 clusters
+```{R}
+clusters <- cutree(hc.complete,3)  # cuts the dendrogram to get 3 clusters
+USArrests$Cluster <- clusters# adds a column to the table
+clusters
+head(USArrests)
+```
+
+## After Scaling the data
+```{R}
+# Scaling the data to have mean 0 and standard deviation 1
+scaled_USArrests <- scale(USArrests)
+hc.complete_sc = hclust(dist(scaled_USArrests), method = "complete")
+plot(hc.complete_sc, main ="Dendrogram using Complete Linkage", xlab = "", sub = "", cex = 0.8)
+```
+
+## Cutting the dendrogram to get 3 clusters
+```{R}
+clusters_sc <- cutree(hc.complete_sc,3)
+USArrests$Cluster <- clusters_sc
+clusters_sc
+head(USArrests)
+```
+d) Scaling variables before computing hierarchical clustering is crucial because it ensures that all features contribute equally to the distance measurements. Without scaling, variables with larger ranges dominate the distance calculations, which can skew the clustering results. Scaling brings all features to the same scale, so each one has an equal impact on the clustering process. This leads to more meaningful and balanced clusters, reflecting true similarities between observations rather than being biased by the scale of individual features.
